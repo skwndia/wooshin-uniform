@@ -161,6 +161,44 @@ button{cursor:pointer}
 .new-item-box select{border:1px solid var(--line);border-radius:12px;padding:10px;min-width:0;background:#fff}
 .stock-admin-row.none-size{grid-template-columns:1.4fr 1fr 44px 46px 44px}
 
+
+.item-title-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.item-title-row h4{margin:0;min-width:0}
+.item-name-edit-btn{border:0;border-radius:10px;background:#eef6fc;color:var(--navy);font-size:10px;font-weight:950;padding:7px 9px;white-space:nowrap}
+.item-name-editor{display:none;grid-template-columns:1fr 58px 58px;gap:6px;margin:8px 0 10px}
+.item-name-editor.show{display:grid}
+.item-name-editor input{border:1px solid var(--line);border-radius:10px;padding:9px 10px;min-width:0}
+.item-name-editor button{border:0;border-radius:10px;font-size:10px;font-weight:950}
+.item-name-editor .save-name{background:var(--navy);color:#fff}
+.item-name-editor .cancel-name{background:#eef1f4;color:var(--ink)}
+
+
+.day-filter-row{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 12px}
+.day-filter-row button{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;padding:7px 10px;font-size:10px;font-weight:900}
+.day-filter-row button.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.date-group{border:1px solid var(--line);border-radius:16px;padding:12px;margin:10px 0;background:#fbfdff}
+.date-group-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.date-group-head h4{margin:0;font-size:13px}
+.date-counts{font-size:10px;color:var(--muted);font-weight:800}
+.status-chip{display:inline-block;border-radius:999px;padding:4px 8px;font-size:9px;font-weight:950}
+.status-chip.pending{background:#eef6fc;color:#376d94}
+.status-chip.done{background:#e9f7ee;color:#2f7a4c}
+.status-chip.missed{background:#fff0ec;color:#b44b32}
+.status-chip.cancelled{background:#f2f2f4;color:#777}
+.missed-btn{background:#fff0ec!important;color:#b44b32!important}
+.reschedule-box{display:none;grid-template-columns:1fr 90px;gap:6px;margin-top:8px}
+.reschedule-box.show{display:grid}
+.reschedule-box select{border:1px solid var(--line);border-radius:10px;padding:8px;background:#fff}
+.reschedule-box button{border:0;border-radius:10px;background:var(--navy);color:#fff;font-size:10px;font-weight:950}
+.notice-copy-btn{background:#eef6fc!important;color:var(--navy)!important}
+.alert-card{border:1px solid #f2d8d0;background:#fffaf8;border-radius:14px;padding:10px;margin:8px 0}
+.alert-card h5{margin:0 0 5px;font-size:12px}
+.alert-card p{margin:3px 0;font-size:10px;color:var(--muted);line-height:1.45}
+.alert-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.alert-actions button{border:0;border-radius:10px;padding:7px 9px;font-size:10px;font-weight:900}
+.alert-section-title{display:flex;align-items:center;justify-content:space-between;margin:6px 0 8px}
+.alert-section-title h4{margin:0}
+
 </style>
 </head>
 <body>
@@ -312,12 +350,19 @@ button{cursor:pointer}
         </div>
       </div>
       <div class="admin-panel" id="rentalsPanel">
-        <div class="grade-tabs" data-grade-for="rentals"></div>
+        <div class="grade-tabs" data-grade-for="rentals"></div><div class="day-filter-row" data-day-for="rentals"></div>
         <div id="rentalAdminList"></div>
       </div>
       <div class="admin-panel" id="donationsPanel">
-        <div class="grade-tabs" data-grade-for="donations"></div>
+        <div class="grade-tabs" data-grade-for="donations"></div><div class="day-filter-row" data-day-for="donations"></div>
         <div id="donationAdminList"></div>
+<div class="admin-card" style="margin-top:14px">
+            <div class="alert-section-title">
+              <h4>🔔 알림 필요</h4>
+              <span style="font-size:10px;color:var(--muted)">미수령·미전달 학생</span>
+            </div>
+            <div id="alertNeededList"></div>
+          </div>
       </div>
     </div>
   </section>
@@ -384,6 +429,7 @@ const seed={
 let db=loadDB();
 let rentalType="대여";
 let adminGrade={rentals:"전체",donations:"전체"};
+let adminDay={rentals:"전체",donations:"전체"};
 
 function clone(v){return JSON.parse(JSON.stringify(v));}
 function loadDB(){
@@ -702,11 +748,57 @@ function addSizeToItem(itemIdx,raw){
   toast(`${item.name}에 ${String(raw).trim()} 사이즈를 추가했습니다.`);
 }
 
+
+function renameItemEverywhere(itemIdx,newName){
+  const item=db.inventory[itemIdx];
+  if(!item)return false;
+  const oldName=item.name;
+  const next=String(newName||"").trim();
+
+  if(!next){toast("품목명을 입력해 주세요.");return false;}
+  if(next===oldName)return true;
+  if(db.inventory.some((x,i)=>i!==itemIdx&&x.name===next)){
+    toast("이미 등록된 품목명입니다.");
+    return false;
+  }
+
+  item.name=next;
+  ["rentals","donations"].forEach(type=>{
+    (db[type]||[]).forEach(rec=>{
+      (rec.items||[]).forEach(req=>{
+        if(req.name===oldName)req.name=next;
+      });
+    });
+  });
+
+  saveDB();
+  renderStockAdmin();
+  renderInventory();
+  renderApplications("rentals");
+  renderApplications("donations");
+
+  $("rentalItems").innerHTML="";
+  $("donationItems").innerHTML="";
+  ensureRentalLine();
+  ensureDonationLine();
+
+  toast(`품목명을 '${oldName}' → '${next}'로 변경했습니다.`);
+  return true;
+}
+
 function renderStockAdmin(){
   const box=$("stockAdminList");box.innerHTML="";
   db.inventory.forEach((item,itemIdx)=>{
     const card=document.createElement("div");card.className="admin-card";
-    card.innerHTML=`<h4>${item.icon||"👕"} ${item.name}<span class="size-type-badge">${SIZE_MODE_LABELS[item.sizeMode]||"사이즈 관리"}</span></h4>
+    card.innerHTML=`<div class="item-title-row">
+        <h4>${item.icon||"👕"} ${item.name}<span class="size-type-badge">${SIZE_MODE_LABELS[item.sizeMode]||"사이즈 관리"}</span></h4>
+        <button type="button" class="item-name-edit-btn" data-name-edit="${itemIdx}">✏️ 이름 수정</button>
+      </div>
+      <div class="item-name-editor" data-name-editor="${itemIdx}">
+        <input type="text" value="${item.name.replace(/"/g,'&quot;')}" aria-label="${item.name} 품목명 수정">
+        <button type="button" class="save-name">저장</button>
+        <button type="button" class="cancel-name">취소</button>
+      </div>
       <div class="photo-admin">
         <div class="photo-thumb">${item.photo?`<img src="${item.photo}" alt="${item.name} 사진">`:`<span>${item.icon||"👕"}</span>`}</div>
         <input type="file" accept="image/*" data-photo-upload="${itemIdx}">
@@ -715,6 +807,27 @@ function renderStockAdmin(){
     card.querySelector(`[data-photo-upload="${itemIdx}"]`).addEventListener("change",e=>handleItemPhoto(itemIdx,e.target.files[0]));
     card.querySelector(`[data-photo-delete="${itemIdx}"]`).addEventListener("click",()=>{
       db.inventory[itemIdx].photo="";saveDB();renderStockAdmin();renderInventory();
+    });
+
+    const editBtn=card.querySelector(`[data-name-edit="${itemIdx}"]`);
+    const editor=card.querySelector(`[data-name-editor="${itemIdx}"]`);
+    const nameInput=editor.querySelector("input");
+    const saveNameBtn=editor.querySelector(".save-name");
+    const cancelNameBtn=editor.querySelector(".cancel-name");
+
+    editBtn.addEventListener("click",()=>{
+      editor.classList.add("show");
+      nameInput.focus();
+      nameInput.select();
+    });
+    cancelNameBtn.addEventListener("click",()=>{
+      nameInput.value=item.name;
+      editor.classList.remove("show");
+    });
+    saveNameBtn.addEventListener("click",()=>renameItemEverywhere(itemIdx,nameInput.value));
+    nameInput.addEventListener("keydown",e=>{
+      if(e.key==="Enter"){e.preventDefault();renameItemEverywhere(itemIdx,nameInput.value);}
+      if(e.key==="Escape"){nameInput.value=item.name;editor.classList.remove("show");}
     });
 
     if(item.sizeMode==="none"){
@@ -762,6 +875,117 @@ $("addStockBtn").addEventListener("click",()=>{
 
 $("logoUpload")?.addEventListener("change",e=>handleLogo(e.target.files[0]));
 
+
+function weekdayKey(dateStr){
+  const d=new Date(dateStr+"T12:00:00+09:00");
+  const day=d.getDay();
+  if(day===2)return "화요일";
+  if(day===4)return "목요일";
+  return "기타";
+}
+function applicationDate(type,rec){
+  if(type==="rentals")return rec.rescheduleDate||rec.pickup||"";
+  return rec.rescheduleDate||rec.delivery||"";
+}
+function statusLabel(type,rec){
+  if(rec.status==="완료")return type==="rentals"?"지급 완료":"전달 완료";
+  if(rec.status==="미수령")return "미수령";
+  if(rec.status==="미전달")return "미전달";
+  if(rec.status==="취소")return "취소";
+  return "신청";
+}
+function statusClass(rec){
+  if(rec.status==="완료")return "done";
+  if(rec.status==="미수령"||rec.status==="미전달")return "missed";
+  if(rec.status==="취소")return "cancelled";
+  return "pending";
+}
+function noticeText(type,rec){
+  const missed=type==="rentals"?"수령":"전달";
+  const next=rec.rescheduleDate?`\n재${missed} 예정일: ${koreanDateLabel(rec.rescheduleDate)}`:"";
+  return `[우신고 학생자치회] 교복 ${type==="rentals"?"수령":"전달"} 안내\n${rec.studentId} ${rec.name} 학생, 신청하신 교복을 예정된 ${missed}일에 처리하지 못해 안내드립니다.${next}\n관리자와 재${missed} 일정을 확인해 주세요.`;
+}
+async function copyNotice(type,rec){
+  const txt=noticeText(type,rec);
+  try{
+    await navigator.clipboard.writeText(txt);
+    toast("알림 문구를 복사했습니다.");
+  }catch(_){
+    const ta=document.createElement("textarea");
+    ta.value=txt;document.body.appendChild(ta);ta.select();
+    document.execCommand("copy");ta.remove();
+    toast("알림 문구를 복사했습니다.");
+  }
+}
+function markMissed(type,id){
+  const rec=db[type].find(x=>x.id===id);if(!rec)return;
+  rec.status=type==="rentals"?"미수령":"미전달";
+  saveDB();renderAdmin();toast(type==="rentals"?"미수령으로 표시했습니다.":"미전달로 표시했습니다.");
+}
+function setReschedule(type,id,date){
+  const rec=db[type].find(x=>x.id===id);if(!rec||!date)return;
+  rec.rescheduleDate=date;
+  saveDB();renderAdmin();
+  toast(type==="rentals"?"재수령일을 지정했습니다.":"재전달일을 지정했습니다.");
+}
+function renderDayTabs(type){
+  const host=document.querySelector(`[data-day-for="${type}"]`);
+  if(!host)return;
+  host.innerHTML="";
+  ["전체","화요일","목요일"].forEach(g=>{
+    const b=document.createElement("button");b.textContent=g;
+    b.classList.toggle("active",adminDay[type]===g);
+    b.onclick=()=>{adminDay[type]=g;renderApplications(type);};
+    host.appendChild(b);
+  });
+}
+function renderAlertNeeded(){
+  const box=$("alertNeededList");if(!box)return;
+  box.innerHTML="";
+  const entries=[];
+  db.rentals.filter(x=>x.status==="미수령").forEach(x=>entries.push({type:"rentals",rec:x}));
+  db.donations.filter(x=>x.status==="미전달").forEach(x=>entries.push({type:"donations",rec:x}));
+  if(!entries.length){
+    box.innerHTML='<div class="empty">현재 알림이 필요한 학생이 없습니다.</div>';
+    return;
+  }
+  entries.sort((a,b)=>String(applicationDate(a.type,a.rec)).localeCompare(String(applicationDate(b.type,b.rec))));
+  entries.forEach(({type,rec})=>{
+    const card=document.createElement("div");card.className="alert-card";
+    const kind=type==="rentals"?"미수령":"미전달";
+    const date=applicationDate(type,rec);
+    card.innerHTML=`<h5>🔔 ${rec.studentId} · ${rec.name} <span class="status-chip missed">${kind}</span></h5>
+      <p>예정일: ${date?koreanDateLabel(date):"-"}</p>
+      <p>품목: ${rec.items.map(formatItem).join(" / ")}</p>
+      <div class="alert-actions"></div>
+      <div class="reschedule-box">
+        <select></select><button type="button">${type==="rentals"?"재수령일 저장":"재전달일 저장"}</button>
+      </div>`;
+    const actions=card.querySelector(".alert-actions");
+    const copy=document.createElement("button");copy.className="notice-copy-btn";copy.textContent="알림 문구 복사";
+    copy.onclick=()=>copyNotice(type,rec);
+
+    const schedule=document.createElement("button");schedule.textContent=type==="rentals"?"재수령일 지정":"재전달일 지정";
+    schedule.onclick=()=>card.querySelector(".reschedule-box").classList.toggle("show");
+
+    const done=document.createElement("button");done.className="done";done.textContent="처리 완료";
+    done.onclick=()=>{
+      rec.status="완료";
+      saveDB();renderAdmin();toast("처리 완료로 변경했습니다.");
+    };
+
+    actions.append(copy,schedule,done);
+
+    const box2=card.querySelector(".reschedule-box"),sel=box2.querySelector("select");
+    nextTueThu(12).forEach(dt=>{
+      const o=document.createElement("option");o.value=dt;o.textContent=koreanDateLabel(dt);
+      if(rec.rescheduleDate===dt)o.selected=true;
+      sel.appendChild(o);
+    });
+    box2.querySelector("button").onclick=()=>setReschedule(type,rec.id,sel.value);
+    box.appendChild(card);
+  });
+}
 function renderGradeTabs(type){
   const host=document.querySelector(`[data-grade-for="${type}"]`);host.innerHTML="";
   ["전체",1,2,3].forEach(g=>{
@@ -772,24 +996,93 @@ function renderGradeTabs(type){
 }
 function renderApplications(type){
   renderGradeTabs(type);
+  renderDayTabs(type);
+
   const isRental=type==="rentals";
-  const list=db[type].filter(x=>adminGrade[type]==="전체"||x.grade===Number(adminGrade[type]));
+  let list=db[type].filter(x=>adminGrade[type]==="전체"||x.grade===Number(adminGrade[type]));
+  if(adminDay[type]!=="전체"){
+    list=list.filter(x=>weekdayKey(applicationDate(type,x))===adminDay[type]);
+  }
+
   const box=$(isRental?"rentalAdminList":"donationAdminList");box.innerHTML="";
-  if(!list.length){box.innerHTML='<div class="empty">해당 학년의 신청 내역이 없습니다.</div>';return;}
+  if(!list.length){
+    box.innerHTML='<div class="empty">해당 조건의 신청 내역이 없습니다.</div>';
+    return;
+  }
+
+  const groups={};
   list.forEach(rec=>{
-    const card=document.createElement("div");card.className="admin-card";
-    const date=isRental?rec.pickup:rec.delivery;
-    card.innerHTML=`<h4>${rec.studentId} · ${rec.name} <span style="font-size:11px;color:var(--sky);margin-left:6px">${rec.status}</span></h4>
-      <p>${isRental?`이용 형태: ${rec.type}<br>${rec.type==="대여"&&rec.startDate?`대여 기간: ${rec.startDate} ~ ${rec.returnDate} / 반납 ${rec.returnTime}<br>`:""}`:""}${isRental?"수령":"전달"}: ${koreanDateLabel(date)}</p>
-      <p><b style="color:var(--ink)">품목:</b> ${rec.items.map(formatItem).join(" / ")}</p>
-      <div class="action-row"></div>`;
-    const actions=card.querySelector(".action-row");
-    const done=document.createElement("button");done.className="smallbtn done";
-    done.textContent=rec.status==="완료"?"완료됨":isRental?"지급 완료":"전달 완료";
-    done.disabled=rec.status==="완료";done.onclick=()=>completeApplication(type,rec.id);
-    const del=document.createElement("button");del.className="smallbtn delete";del.textContent="삭제";
-    del.onclick=()=>deleteApplication(type,rec.id);
-    actions.append(done,del);box.appendChild(card);
+    const d=applicationDate(type,rec)||"날짜 미지정";
+    if(!groups[d])groups[d]=[];
+    groups[d].push(rec);
+  });
+
+  Object.keys(groups).sort().forEach(date=>{
+    const recs=groups[date];
+    const doneCount=recs.filter(x=>x.status==="완료").length;
+    const missedCount=recs.filter(x=>x.status==="미수령"||x.status==="미전달").length;
+    const pendingCount=recs.length-doneCount-missedCount-recs.filter(x=>x.status==="취소").length;
+
+    const wrap=document.createElement("div");wrap.className="date-group";
+    wrap.innerHTML=`<div class="date-group-head">
+        <h4>${date==="날짜 미지정"?"날짜 미지정":koreanDateLabel(date)} · ${recs.length}명</h4>
+        <div class="date-counts">신청 ${Math.max(0,pendingCount)} · 완료 ${doneCount} · ${isRental?"미수령":"미전달"} ${missedCount}</div>
+      </div>
+      <div class="date-group-list"></div>`;
+    const groupList=wrap.querySelector(".date-group-list");
+
+    recs.forEach(rec=>{
+      const card=document.createElement("div");card.className="admin-card";
+      const actualDate=applicationDate(type,rec);
+      const originalDate=isRental?rec.pickup:rec.delivery;
+      const rescheduled=rec.rescheduleDate&&rec.rescheduleDate!==originalDate;
+      card.innerHTML=`<h4>${rec.studentId} · ${rec.name} <span class="status-chip ${statusClass(rec)}">${statusLabel(type,rec)}</span></h4>
+        <p>${isRental?`이용 형태: ${rec.type}<br>${rec.type==="대여"&&rec.startDate?`대여 기간: ${rec.startDate} ~ ${rec.returnDate} / 반납 ${rec.returnTime}<br>`:""}`:""}${isRental?"수령":"전달"}: ${actualDate?koreanDateLabel(actualDate):"-"}${rescheduled?` <b style="color:#b44b32">(재지정)</b>`:""}</p>
+        <p><b style="color:var(--ink)">품목:</b> ${rec.items.map(formatItem).join(" / ")}</p>
+        <div class="action-row"></div>
+        <div class="reschedule-box">
+          <select></select><button type="button">${isRental?"재수령일 저장":"재전달일 저장"}</button>
+        </div>`;
+
+      const actions=card.querySelector(".action-row");
+
+      const done=document.createElement("button");done.className="smallbtn done";
+      done.textContent=rec.status==="완료"?"완료됨":isRental?"지급 완료":"전달 완료";
+      done.disabled=rec.status==="완료";
+      done.onclick=()=>completeApplication(type,rec.id);
+
+      const missed=document.createElement("button");missed.className="smallbtn missed-btn";
+      missed.textContent=isRental?"미수령":"미전달";
+      missed.disabled=rec.status==="완료";
+      missed.onclick=()=>markMissed(type,rec.id);
+
+      const copy=document.createElement("button");copy.className="smallbtn notice-copy-btn";
+      copy.textContent="알림 복사";
+      copy.style.display=(rec.status==="미수령"||rec.status==="미전달")?"inline-block":"none";
+      copy.onclick=()=>copyNotice(type,rec);
+
+      const resched=document.createElement("button");resched.className="smallbtn";
+      resched.textContent=isRental?"재수령일":"재전달일";
+      resched.style.display=(rec.status==="미수령"||rec.status==="미전달")?"inline-block":"none";
+      resched.onclick=()=>card.querySelector(".reschedule-box").classList.toggle("show");
+
+      const del=document.createElement("button");del.className="smallbtn delete";del.textContent="삭제";
+      del.onclick=()=>deleteApplication(type,rec.id);
+
+      actions.append(done,missed,copy,resched,del);
+
+      const rb=card.querySelector(".reschedule-box"),sel=rb.querySelector("select");
+      nextTueThu(12).forEach(dt=>{
+        const o=document.createElement("option");o.value=dt;o.textContent=koreanDateLabel(dt);
+        if(rec.rescheduleDate===dt)o.selected=true;
+        sel.appendChild(o);
+      });
+      rb.querySelector("button").onclick=()=>setReschedule(type,rec.id,sel.value);
+
+      groupList.appendChild(card);
+    });
+
+    box.appendChild(wrap);
   });
 }
 function changeInventory(items,delta){
@@ -811,8 +1104,11 @@ function completeApplication(type,id){
   if(type==="rentals"){
     const err=rentalStockEnough(rec.items);if(err){toast(err);return;}
     changeInventory(rec.items,-1);
-  }else changeInventory(rec.items,1);
-  rec.status="완료";saveDB();renderAdmin();renderInventory();
+  }else{
+    changeInventory(rec.items,1);
+  }
+  rec.status="완료";
+  saveDB();renderAdmin();renderInventory();
   toast(type==="rentals"?"지급 완료 처리했습니다.":"전달 완료 및 재고 반영했습니다.");
 }
 function deleteApplication(type,id){
@@ -820,7 +1116,7 @@ function deleteApplication(type,id){
   if(!confirm(`${rec.studentId} ${rec.name} 신청을 삭제할까요?`))return;
   db[type]=db[type].filter(x=>x.id!==id);saveDB();renderAdmin();toast("신청 내역을 삭제했습니다.");
 }
-function renderAdmin(){renderStockAdmin();renderApplications("rentals");renderApplications("donations");}
+function renderAdmin(){renderStockAdmin();renderApplications("rentals");renderApplications("donations");renderAlertNeeded();}
 
 window.addEventListener("beforeinstallprompt",e=>{
   e.preventDefault();deferredInstallPrompt=e;$("installAppBtn").style.display="block";
