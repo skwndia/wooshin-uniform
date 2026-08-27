@@ -1,7 +1,7 @@
 {
   "name": "우신고 교복 물려주기 & 대여",
   "short_name": "우신고 교복",
-  "description": "학생자치회 총무부 주관 우신고 교복 물려주기 & 대여 신청 사이트",
+  "description": "우신고 교복 물려주기 & 대여 - 품목별 사이즈/재고 관리 및 신청 사이트",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#F4F9FD",

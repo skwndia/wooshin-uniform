@@ -149,6 +149,18 @@ button{cursor:pointer}
 .qr-mini{width:120px;height:120px;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff}
 .qr-mini img{width:100%;height:100%;object-fit:contain}
 
+
+.item-line.no-size{grid-template-columns:1.8fr 64px 40px}
+.item-line.no-size .size-select{display:none}
+.size-type-badge{display:inline-block;margin-left:6px;padding:4px 8px;border-radius:999px;background:var(--sky2);color:#376D94;font-size:10px;font-weight:950;vertical-align:middle}
+.size-add-box{display:grid;grid-template-columns:1fr 86px;gap:7px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+.size-add-box input{border:1px solid var(--line);border-radius:11px;padding:10px;min-width:0}
+.size-add-box button{border:0;border-radius:11px;background:var(--navy);color:#fff;font-size:11px;font-weight:950}
+.size-rule{font-size:10px;color:var(--muted);margin:7px 0 0;line-height:1.45}
+.new-item-box.v3{grid-template-columns:1.3fr 1fr 74px}
+.new-item-box select{border:1px solid var(--line);border-radius:12px;padding:10px;min-width:0;background:#fff}
+.stock-admin-row.none-size{grid-template-columns:1.4fr 1fr 44px 46px 44px}
+
 </style>
 </head>
 <body>
@@ -285,7 +297,18 @@ button{cursor:pointer}
         <div id="stockAdminList"></div>
         <div class="admin-card">
           <h4>새 품목/사이즈 추가</h4>
-          <div class="new-item-box"><input id="newItemName" placeholder="품목명"><input id="newItemSize" placeholder="사이즈"><button id="addStockBtn">추가</button></div>
+          <div class="new-item-box v3">
+            <input id="newItemName" placeholder="새 품목명">
+            <select id="newItemMode" aria-label="사이즈 관리 방식">
+              <option value="upper">상의형</option>
+              <option value="skirt">치마형</option>
+              <option value="none">사이즈 없음</option>
+            </select>
+            <button id="addStockBtn">추가</button>
+          </div>
+          <p style="margin:8px 0 0;color:var(--muted);font-size:10px;line-height:1.5">
+            상의형은 90~135(5단위), 치마형은 60~90의 실제 표기 사이즈를 직접 추가할 수 있습니다.
+          </p>
         </div>
       </div>
       <div class="admin-panel" id="rentalsPanel">
@@ -316,29 +339,45 @@ button{cursor:pointer}
 (()=>{
 "use strict";
 
-const STORAGE_KEY="wooshin-uniform-final-v1";
-const ADMIN_PASSWORD="ws2026"; // 시제품 전용. 실제 운영에서는 서버 인증으로 교체.
+const STORAGE_KEY="wooshin-uniform-v3-size-schema";
+const ADMIN_PASSWORD="ws2026";
 const SITE_URL="https://skwndia.github.io/wooshin-uniform/";
 let deferredInstallPrompt=null;
 const $=id=>document.getElementById(id);
 
+const UPPER_SIZES=["90","95","100","105","110","115","120","125","130","135"];
+const SIZE_MODE_LABELS={upper:"상의형",skirt:"치마형",none:"사이즈 없음"};
+
+function withQty(sizes, stocked={}){
+  return sizes.map(s=>[s, Number(stocked[s]||0)]);
+}
+
 const seed={
   inventory:[
-    {name:"셔츠",icon:"👕",photo:"",sizes:[["90",3],["95",6],["100",4],["105",2],["110",0]]},
-    {name:"바지",icon:"👖",photo:"",sizes:[["28",2],["30",4],["32",5],["34",3],["36",1]]},
-    {name:"반팔",icon:"🎽",photo:"",sizes:[["90",2],["95",5],["100",5],["105",3],["110",1]]},
-    {name:"넥타이",icon:"👔",photo:"",sizes:[["FREE",8]]},
-    {name:"마이",icon:"🧥",photo:"",sizes:[["90",1],["95",3],["100",4],["105",2],["110",0]]},
-    {name:"조끼",icon:"🦺",photo:"",sizes:[["90",2],["95",2],["100",3],["105",1],["110",0]]},
-    {name:"체육복 상의",icon:"🏃",photo:"",sizes:[["90",2],["95",4],["100",4],["105",2],["110",1]]},
-    {name:"체육복 하의",icon:"🏃",photo:"",sizes:[["90",2],["95",3],["100",3],["105",2],["110",1]]}
+    {name:"조끼",icon:"🦺",photo:"",sizeMode:"upper",sizes:withQty(UPPER_SIZES,{"95":2,"100":3,"105":1})},
+    {name:"하복 반팔",icon:"👕",photo:"",sizeMode:"upper",sizes:withQty(UPPER_SIZES,{"95":3,"100":4,"105":3,"110":1})},
+    {name:"치마(동복)",icon:"👗",photo:"",sizeMode:"skirt",sizes:[["71",2],["77",3],["83",2]]},
+    {name:"치마(하복)",icon:"👗",photo:"",sizeMode:"skirt",sizes:[["71",2],["77",2],["83",1]]},
+    {name:"여자 셔츠",icon:"👚",photo:"",sizeMode:"upper",sizes:withQty(UPPER_SIZES,{"90":1,"95":3,"100":3,"105":2})},
+    {name:"남자 셔츠",icon:"👔",photo:"",sizeMode:"upper",sizes:withQty(UPPER_SIZES,{"95":2,"100":4,"105":3,"110":2})},
+    {name:"여자 마이",icon:"🧥",photo:"",sizeMode:"none",sizes:[["",5]]},
+    {name:"남자 마이",icon:"🧥",photo:"",sizeMode:"none",sizes:[["",5]]},
+    {name:"남자 넥타이",icon:"👔",photo:"",sizeMode:"none",sizes:[["",8]]},
+    {name:"여자 넥타이",icon:"🎀",photo:"",sizeMode:"none",sizes:[["",6]]},
+    {name:"하복바지",icon:"👖",photo:"",sizeMode:"none",sizes:[["",6]]},
+    {name:"동복바지",icon:"👖",photo:"",sizeMode:"none",sizes:[["",7]]}
   ],
   rentals:[
-    {id:"R-DEMO",studentId:"2409",name:"김우신",grade:2,type:"대여",pickup:"2026-09-01",status:"신청",items:[{name:"마이",size:"100",qty:1},{name:"셔츠",size:"100",qty:1}],createdAt:"2026-08-26T10:00:00+09:00"}
+    {id:"R-DEMO",studentId:"2409",name:"김우신",grade:2,type:"대여",pickup:"2026-09-01",
+     startDate:"2026-09-01",returnDate:"2026-09-03",returnTime:"13:00",status:"신청",
+     items:[{name:"남자 셔츠",size:"100",qty:1},{name:"남자 넥타이",size:null,qty:1}],
+     createdAt:"2026-08-26T10:00:00+09:00"}
   ],
   branding:{logo:"school-logo.png"},
   donations:[
-    {id:"D-DEMO",studentId:"1307",name:"이누리",grade:1,delivery:"2026-09-03",status:"신청",items:[{name:"셔츠",size:"95",qty:1},{name:"넥타이",size:"FREE",qty:1}],createdAt:"2026-08-26T10:10:00+09:00"}
+    {id:"D-DEMO",studentId:"1307",name:"이누리",grade:1,delivery:"2026-09-03",status:"신청",
+     items:[{name:"여자 셔츠",size:"95",qty:1},{name:"여자 넥타이",size:null,qty:1}],
+     createdAt:"2026-08-26T10:10:00+09:00"}
   ]
 };
 
@@ -353,30 +392,31 @@ function loadDB(){
     if(raw){
       const d=JSON.parse(raw);
       if(!d.branding)d.branding={logo:"school-logo.png"};
-      (d.inventory||[]).forEach(x=>{if(x.photo===undefined)x.photo="";}); if(!d.branding.logo)d.branding.logo="school-logo.png";
+      if(!d.branding.logo)d.branding.logo="school-logo.png";
+      (d.inventory||[]).forEach(x=>{
+        if(x.photo===undefined)x.photo="";
+        if(!x.sizeMode)x.sizeMode="upper";
+        if(!Array.isArray(x.sizes))x.sizes=[];
+        if(x.sizeMode==="none"&&!x.sizes.length)x.sizes=[["",0]];
+      });
       return d;
     }
   }catch(_){}
   return clone(seed);
 }
-function saveDB(){
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(db));
-}
+function saveDB(){localStorage.setItem(STORAGE_KEY,JSON.stringify(db));}
 function toast(msg){
   const t=$("toast");
   t.textContent=msg;t.classList.add("show");
   clearTimeout(toast._t);
-  toast._t=setTimeout(()=>t.classList.remove("show"),1600);
+  toast._t=setTimeout(()=>t.classList.remove("show"),1700);
 }
 function koreaParts(){
   const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Seoul",weekday:"short",hour:"2-digit",minute:"2-digit",hour12:false,year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());
-  const o={};parts.forEach(p=>o[p.type]=p.value);
-  return o;
+  const o={};parts.forEach(p=>o[p.type]=p.value);return o;
 }
 function isApplicationOpen(){
-  const p=koreaParts();
-  const wd=p.weekday;
-  const mins=Number(p.hour)*60+Number(p.minute);
+  const p=koreaParts(),wd=p.weekday,mins=Number(p.hour)*60+Number(p.minute);
   if(["Mon","Wed","Fri"].includes(wd))return true;
   if(["Tue","Thu"].includes(wd))return mins<=9*60;
   return false;
@@ -399,8 +439,7 @@ function dateInSeoulPlus(days){
   const fmt=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit"});
   const base=fmt.format(now);
   const d=new Date(base+"T00:00:00+09:00");
-  d.setDate(d.getDate()+days);
-  return d;
+  d.setDate(d.getDate()+days);return d;
 }
 function fmtDate(d){
   const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),day=String(d.getDate()).padStart(2,"0");
@@ -444,13 +483,32 @@ function showPage(name){
 }
 document.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>showPage(b.dataset.go)));
 
-function totalItem(item){return item.sizes.reduce((s,x)=>s+Number(x[1]),0);}
+function itemUsesSize(item){return item?.sizeMode!=="none";}
+function totalItem(item){return (item.sizes||[]).reduce((s,x)=>s+Number(x[1]||0),0);}
+function stockSlot(item,size){
+  if(!item)return null;
+  if(item.sizeMode==="none")return item.sizes?.[0]||null;
+  return item.sizes?.find(x=>String(x[0])===String(size))||null;
+}
+function formatItem(req){return `${req.name}${req.size?` ${req.size}`:""} ×${req.qty}`;}
+function sortSizes(item){
+  if(item.sizeMode==="none")return;
+  item.sizes.sort((a,b)=>Number(a[0])-Number(b[0]));
+}
+
 function renderInventory(){
   const box=$("inventoryList");box.innerHTML="";
-  db.inventory.forEach((item,idx)=>{
+  db.inventory.forEach(item=>{
     const card=document.createElement("div");card.className="item-card";
-    card.innerHTML=`<button class="item-head"><div class="name"><div class="photo-thumb">${item.photo?`<img src="${item.photo}" alt="${item.name} 사진">`:`<span>${item.icon||"👕"}</span>`}</div><span>${item.name}</span></div><div class="total">총 ${totalItem(item)}개 〉</div></button>
-      <div class="item-body">${item.sizes.map(([size,qty])=>`<div class="size-row"><b>${size}</b><span class="qty">${qty}개</span><span class="stock ${qty>0?"ok":"no"}">${qty>0?"대여 가능":"품절"}</span></div>`).join("")}</div>`;
+    let body="";
+    if(item.sizeMode==="none"){
+      const qty=totalItem(item);
+      body=`<div class="size-row"><b>현재 보유 수량</b><span class="qty">${qty}개</span><span class="stock ${qty>0?"ok":"no"}">${qty>0?"대여 가능":"품절"}</span></div>`;
+    }else{
+      body=(item.sizes||[]).map(([size,qty])=>`<div class="size-row"><b>${size}</b><span class="qty">${qty}개</span><span class="stock ${qty>0?"ok":"no"}">${qty>0?"대여 가능":"품절"}</span></div>`).join("");
+      if(!body)body='<div class="empty">등록된 사이즈가 없습니다.</div>';
+    }
+    card.innerHTML=`<button class="item-head"><div class="name"><div class="photo-thumb">${item.photo?`<img src="${item.photo}" alt="${item.name} 사진">`:`<span>${item.icon||"👕"}</span>`}</div><span>${item.name}</span></div><div class="total">총 ${totalItem(item)}개 〉</div></button><div class="item-body">${body}</div>`;
     card.querySelector(".item-head").addEventListener("click",()=>card.classList.toggle("open"));
     box.appendChild(card);
   });
@@ -458,27 +516,43 @@ function renderInventory(){
 
 function inventoryItemNames(){return db.inventory.map(x=>x.name);}
 function getItem(name){return db.inventory.find(x=>x.name===name);}
+
 function makeItemLine(container,mode){
   const row=document.createElement("div");row.className="item-line";
   const itemSel=document.createElement("select");
-  const sizeSel=document.createElement("select");
+  const sizeSel=document.createElement("select");sizeSel.className="size-select";
   const qty=document.createElement("input");qty.type="number";qty.min="1";qty.max="5";qty.value="1";qty.title="수량";
   const remove=document.createElement("button");remove.type="button";remove.className="remove-line";remove.textContent="×";
+
   inventoryItemNames().forEach(n=>{
     const o=document.createElement("option");o.value=n;o.textContent=n;itemSel.appendChild(o);
   });
+
   const syncSizes=()=>{
     sizeSel.innerHTML="";
     const it=getItem(itemSel.value);
-    (it?.sizes||[]).forEach(([size,stock])=>{
+    const noSize=!itemUsesSize(it);
+    row.classList.toggle("no-size",noSize);
+    sizeSel.disabled=noSize;
+
+    if(noSize){
+      const o=document.createElement("option");o.value="";o.textContent="사이즈 없음";sizeSel.appendChild(o);
+      return;
+    }
+
+    const sizes=(it?.sizes||[]);
+    sizes.forEach(([size,stock])=>{
       const o=document.createElement("option");o.value=size;
       o.textContent=mode==="rental"?`${size}${stock<=0?" · 품절":` · ${stock}개`}`:size;
       if(mode==="rental"&&stock<=0)o.disabled=true;
       sizeSel.appendChild(o);
     });
+    if(!sizes.length){
+      const o=document.createElement("option");o.value="";o.textContent="등록된 사이즈 없음";o.disabled=true;sizeSel.appendChild(o);
+    }
   };
   itemSel.addEventListener("change",syncSizes);syncSizes();
-  remove.addEventListener("click",()=>{row.remove();});
+  remove.addEventListener("click",()=>row.remove());
   row.append(itemSel,sizeSel,qty,remove);container.appendChild(row);
 }
 function ensureRentalLine(){if(!$("rentalItems").children.length)makeItemLine($("rentalItems"),"rental");}
@@ -495,24 +569,31 @@ document.querySelectorAll("[data-rental-type]").forEach(b=>b.addEventListener("c
 function collectItems(container){
   return [...container.querySelectorAll(".item-line")].map(row=>{
     const sels=row.querySelectorAll("select"),inp=row.querySelector("input");
-    return {name:sels[0].value,size:sels[1].value,qty:Math.max(1,Number(inp.value)||1)};
+    const item=getItem(sels[0].value);
+    return {name:sels[0].value,size:itemUsesSize(item)?(sels[1].value||null):null,qty:Math.max(1,Number(inp.value)||1)};
   });
 }
 function validateBasic(studentId,name,items,date){
   if(!studentId.trim()||!name.trim())return "학번과 이름을 입력해 주세요.";
   if(![1,2,3].includes(gradeFromId(studentId)))return "학번의 첫 숫자는 학년(1·2·3)으로 입력해 주세요.";
   if(!items.length)return "품목을 1개 이상 선택해 주세요.";
+  for(const req of items){
+    const it=getItem(req.name);
+    if(itemUsesSize(it)&&!req.size)return `${req.name}의 사이즈를 선택해 주세요.`;
+  }
   if(!date)return "날짜를 선택해 주세요.";
   return "";
 }
 function rentalStockEnough(items){
   for(const req of items){
-    const it=getItem(req.name);
-    const s=it?.sizes.find(x=>x[0]===req.size);
-    if(!s||Number(s[1])<req.qty)return `${req.name} ${req.size} 사이즈의 재고가 부족합니다.`;
+    const it=getItem(req.name),s=stockSlot(it,req.size);
+    if(!s||Number(s[1])<req.qty){
+      return itemUsesSize(it)?`${req.name} ${req.size} 사이즈의 재고가 부족합니다.`:`${req.name}의 재고가 부족합니다.`;
+    }
   }
   return "";
 }
+
 $("submitRental").addEventListener("click",()=>{
   if(!isApplicationOpen()){toast("현재는 신청 가능 시간이 아닙니다.");return;}
   const studentId=$("rentalStudentId").value.trim(),name=$("rentalName").value.trim();
@@ -522,10 +603,12 @@ $("submitRental").addEventListener("click",()=>{
   if(!err&&rentalType==="대여"&&(!startDate||!returnDate||!returnTime))err="임시 대여의 대여 시작일·반납일·반납시간을 입력해 주세요.";
   if(!err&&rentalType==="대여"&&returnDate<startDate)err="반납 예정일은 대여 시작일 이후로 선택해 주세요.";
   if(err){toast(err);return;}
-  const rec={id:"R-"+Date.now(),studentId,name,grade:gradeFromId(studentId),type:rentalType,pickup,startDate:rentalType==="대여"?startDate:"",returnDate:rentalType==="대여"?returnDate:"",returnTime:rentalType==="대여"?returnTime:"",status:"신청",items,createdAt:new Date().toISOString()};
+  const rec={id:"R-"+Date.now(),studentId,name,grade:gradeFromId(studentId),type:rentalType,pickup,
+    startDate:rentalType==="대여"?startDate:"",returnDate:rentalType==="대여"?returnDate:"",
+    returnTime:rentalType==="대여"?returnTime:"",status:"신청",items,createdAt:new Date().toISOString()};
   db.rentals.unshift(rec);saveDB();
   $("rentalFormWrap").style.display="none";$("rentalSuccess").classList.add("show");
-  $("rentalSuccessText").innerHTML=`${koreanDateLabel(pickup)}에 수령해 주세요.<br>신청 품목: ${items.map(x=>`${x.name} ${x.size} ×${x.qty}`).join(", ")}${rentalType==="대여"?`<br>대여 기간: ${startDate} ~ ${returnDate} / 반납 ${returnTime}`:""}`;
+  $("rentalSuccessText").innerHTML=`${koreanDateLabel(pickup)}에 수령해 주세요.<br>신청 품목: ${items.map(formatItem).join(", ")}${rentalType==="대여"?`<br>대여 기간: ${startDate} ~ ${returnDate} / 반납 ${returnTime}`:""}`;
   renderAdmin();
 });
 $("submitDonation").addEventListener("click",()=>{
@@ -537,15 +620,12 @@ $("submitDonation").addEventListener("click",()=>{
   const rec={id:"D-"+Date.now(),studentId,name,grade:gradeFromId(studentId),delivery,status:"신청",items,createdAt:new Date().toISOString()};
   db.donations.unshift(rec);saveDB();
   $("donationFormWrap").style.display="none";$("donationSuccess").classList.add("show");
-  $("donationSuccessText").innerHTML=`${koreanDateLabel(delivery)}에 전달해 주세요.<br>지급 품목: ${items.map(x=>`${x.name} ${x.size} ×${x.qty}`).join(", ")}`;
+  $("donationSuccessText").innerHTML=`${koreanDateLabel(delivery)}에 전달해 주세요.<br>지급 품목: ${items.map(formatItem).join(", ")}`;
   renderAdmin();
 });
-function resetRentalView(){
-  $("rentalFormWrap").style.display="block";$("rentalSuccess").classList.remove("show");
-}
-function resetDonationView(){
-  $("donationFormWrap").style.display="block";$("donationSuccess").classList.remove("show");
-}
+
+function resetRentalView(){$("rentalFormWrap").style.display="block";$("rentalSuccess").classList.remove("show");}
+function resetDonationView(){$("donationFormWrap").style.display="block";$("donationSuccess").classList.remove("show");}
 
 $("adminLoginBtn").addEventListener("click",()=>{
   if($("adminPassword").value===ADMIN_PASSWORD){
@@ -557,7 +637,6 @@ document.querySelectorAll("[data-admin-tab]").forEach(b=>b.addEventListener("cli
   document.querySelectorAll(".admin-panel").forEach(x=>x.classList.remove("active"));
   $(`${b.dataset.adminTab}Panel`).classList.add("active");
 }));
-
 
 function resizeImageFile(file,maxW=480,maxH=480,quality=.78){
   return new Promise((resolve,reject)=>{
@@ -573,26 +652,22 @@ function resizeImageFile(file,maxW=480,maxH=480,quality=.78){
         c.getContext("2d").drawImage(img,0,0,c.width,c.height);
         resolve(c.toDataURL("image/jpeg",quality));
       };
-      img.onerror=reject;
-      img.src=reader.result;
+      img.onerror=reject;img.src=reader.result;
     };
-    reader.onerror=reject;
-    reader.readAsDataURL(file);
+    reader.onerror=reject;reader.readAsDataURL(file);
   });
 }
 async function handleItemPhoto(itemIdx,file){
   if(!file)return;
   try{
-    const data=await resizeImageFile(file);
-    db.inventory[itemIdx].photo=data;
+    db.inventory[itemIdx].photo=await resizeImageFile(file);
     saveDB();renderStockAdmin();renderInventory();toast("품목 사진을 저장했습니다.");
   }catch(_){toast("사진을 불러오지 못했습니다.");}
 }
 async function handleLogo(file){
   if(!file)return;
   try{
-    const data=await resizeImageFile(file,320,320,.82);
-    db.branding.logo=data;
+    db.branding.logo=await resizeImageFile(file,320,320,.82);
     saveDB();renderBranding();toast("학교 로고를 저장했습니다.");
   }catch(_){toast("로고 이미지를 불러오지 못했습니다.");}
 }
@@ -604,27 +679,70 @@ function renderBranding(){
   if($("siteLinkText"))$("siteLinkText").textContent=SITE_URL;
 }
 
+function sizeRuleText(item){
+  if(item.sizeMode==="upper")return "90~135 범위의 5단위 사이즈만 추가할 수 있습니다.";
+  if(item.sizeMode==="skirt")return "60~90 범위에서 실제 교복에 적힌 숫자를 그대로 입력합니다. 예: 71, 77, 83";
+  return "";
+}
+function validateNewSize(item,raw){
+  const v=String(raw).trim();
+  if(!/^\d+$/.test(v))return "사이즈는 숫자로 입력해 주세요.";
+  const n=Number(v);
+  if(item.sizeMode==="upper"&&(n<90||n>135||n%5!==0))return "상의형 사이즈는 90~135 범위의 5단위로 입력해 주세요.";
+  if(item.sizeMode==="skirt"&&(n<60||n>90))return "치마 사이즈는 60~90 범위에서 입력해 주세요.";
+  if(item.sizes.some(x=>String(x[0])===v))return "이미 등록된 사이즈입니다.";
+  return "";
+}
+function addSizeToItem(itemIdx,raw){
+  const item=db.inventory[itemIdx];
+  if(!item||item.sizeMode==="none")return;
+  const err=validateNewSize(item,raw);
+  if(err){toast(err);return;}
+  item.sizes.push([String(raw).trim(),0]);sortSizes(item);saveDB();renderStockAdmin();renderInventory();
+  toast(`${item.name}에 ${String(raw).trim()} 사이즈를 추가했습니다.`);
+}
+
 function renderStockAdmin(){
   const box=$("stockAdminList");box.innerHTML="";
   db.inventory.forEach((item,itemIdx)=>{
     const card=document.createElement("div");card.className="admin-card";
-    card.innerHTML=`<h4>${item.icon||"👕"} ${item.name}</h4>
+    card.innerHTML=`<h4>${item.icon||"👕"} ${item.name}<span class="size-type-badge">${SIZE_MODE_LABELS[item.sizeMode]||"사이즈 관리"}</span></h4>
       <div class="photo-admin">
         <div class="photo-thumb">${item.photo?`<img src="${item.photo}" alt="${item.name} 사진">`:`<span>${item.icon||"👕"}</span>`}</div>
         <input type="file" accept="image/*" data-photo-upload="${itemIdx}">
         <button type="button" data-photo-delete="${itemIdx}">사진 삭제</button>
       </div>`;
-    const upload=card.querySelector(`[data-photo-upload="${itemIdx}"]`);
-    upload.addEventListener("change",e=>handleItemPhoto(itemIdx,e.target.files[0]));
-    card.querySelector(`[data-photo-delete="${itemIdx}"]`).addEventListener("click",()=>{db.inventory[itemIdx].photo="";saveDB();renderStockAdmin();renderInventory();});
-    item.sizes.forEach(([size,qty],sizeIdx)=>{
-      const row=document.createElement("div");row.className="stock-admin-row";
-      row.innerHTML=`<b>${item.name}</b><span>${size}</span><button class="roundbtn">−</button><strong style="text-align:center">${qty}</strong><button class="roundbtn">＋</button>`;
-      const btns=row.querySelectorAll("button");
-      btns[0].onclick=()=>adjustStock(itemIdx,sizeIdx,-1);
-      btns[1].onclick=()=>adjustStock(itemIdx,sizeIdx,1);
-      card.appendChild(row);
+    card.querySelector(`[data-photo-upload="${itemIdx}"]`).addEventListener("change",e=>handleItemPhoto(itemIdx,e.target.files[0]));
+    card.querySelector(`[data-photo-delete="${itemIdx}"]`).addEventListener("click",()=>{
+      db.inventory[itemIdx].photo="";saveDB();renderStockAdmin();renderInventory();
     });
+
+    if(item.sizeMode==="none"){
+      if(!item.sizes.length)item.sizes=[["",0]];
+      const qty=Number(item.sizes[0][1]||0);
+      const row=document.createElement("div");row.className="stock-admin-row none-size";
+      row.innerHTML=`<b>${item.name}</b><span>총 수량</span><button class="roundbtn">−</button><strong style="text-align:center">${qty}</strong><button class="roundbtn">＋</button>`;
+      const btns=row.querySelectorAll("button");
+      btns[0].onclick=()=>adjustStock(itemIdx,0,-1);
+      btns[1].onclick=()=>adjustStock(itemIdx,0,1);
+      card.appendChild(row);
+    }else{
+      (item.sizes||[]).forEach(([size,qty],sizeIdx)=>{
+        const row=document.createElement("div");row.className="stock-admin-row";
+        row.innerHTML=`<b>${item.name}</b><span>${size}</span><button class="roundbtn">−</button><strong style="text-align:center">${qty}</strong><button class="roundbtn">＋</button>`;
+        const btns=row.querySelectorAll("button");
+        btns[0].onclick=()=>adjustStock(itemIdx,sizeIdx,-1);
+        btns[1].onclick=()=>adjustStock(itemIdx,sizeIdx,1);
+        card.appendChild(row);
+      });
+      const add=document.createElement("div");add.className="size-add-box";
+      add.innerHTML=`<input type="number" inputmode="numeric" placeholder="${item.sizeMode==="skirt"?"예: 71, 77, 83":"예: 115, 120, 135"}"><button type="button">＋ 사이즈</button>`;
+      const inp=add.querySelector("input"),btn=add.querySelector("button");
+      btn.addEventListener("click",()=>addSizeToItem(itemIdx,inp.value));
+      inp.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addSizeToItem(itemIdx,inp.value);}});
+      card.appendChild(add);
+      const rule=document.createElement("p");rule.className="size-rule";rule.textContent=sizeRuleText(item);card.appendChild(rule);
+    }
     box.appendChild(card);
   });
 }
@@ -633,28 +751,23 @@ function adjustStock(itemIdx,sizeIdx,delta){
   saveDB();renderStockAdmin();renderInventory();
 }
 $("addStockBtn").addEventListener("click",()=>{
-  const name=$("newItemName").value.trim(),size=$("newItemSize").value.trim();
-  if(!name||!size){toast("품목명과 사이즈를 입력해 주세요.");return;}
-  let item=getItem(name);
-  if(!item){item={name,icon:"👕",photo:"",sizes:[]};db.inventory.push(item);}
-  if(item.sizes.some(x=>String(x[0])===size)){toast("이미 등록된 사이즈입니다.");return;}
-  item.sizes.push([size,0]);saveDB();
-  $("newItemName").value="";$("newItemSize").value="";
-  renderStockAdmin();renderInventory();toast("품목/사이즈를 추가했습니다.");
+  const name=$("newItemName").value.trim(),mode=$("newItemMode").value;
+  if(!name){toast("품목명을 입력해 주세요.");return;}
+  if(getItem(name)){toast("이미 등록된 품목입니다.");return;}
+  const item={name,icon:"👕",photo:"",sizeMode:mode,sizes:mode==="none"?[["",0]]:[]};
+  if(mode==="upper")item.sizes=withQty(UPPER_SIZES);
+  db.inventory.push(item);saveDB();$("newItemName").value="";
+  renderStockAdmin();renderInventory();toast("새 품목을 추가했습니다.");
 });
-
 
 $("logoUpload")?.addEventListener("change",e=>handleLogo(e.target.files[0]));
 
 function renderGradeTabs(type){
-  const host=document.querySelector(`[data-grade-for="${type}"]`);
-  host.innerHTML="";
+  const host=document.querySelector(`[data-grade-for="${type}"]`);host.innerHTML="";
   ["전체",1,2,3].forEach(g=>{
-    const b=document.createElement("button");
-    b.textContent=g==="전체"?"전체":`${g}학년`;
+    const b=document.createElement("button");b.textContent=g==="전체"?"전체":`${g}학년`;
     b.classList.toggle("active",String(adminGrade[type])===String(g));
-    b.onclick=()=>{adminGrade[type]=g;renderApplications(type);};
-    host.appendChild(b);
+    b.onclick=()=>{adminGrade[type]=g;renderApplications(type);};host.appendChild(b);
   });
 }
 function renderApplications(type){
@@ -668,38 +781,37 @@ function renderApplications(type){
     const date=isRental?rec.pickup:rec.delivery;
     card.innerHTML=`<h4>${rec.studentId} · ${rec.name} <span style="font-size:11px;color:var(--sky);margin-left:6px">${rec.status}</span></h4>
       <p>${isRental?`이용 형태: ${rec.type}<br>${rec.type==="대여"&&rec.startDate?`대여 기간: ${rec.startDate} ~ ${rec.returnDate} / 반납 ${rec.returnTime}<br>`:""}`:""}${isRental?"수령":"전달"}: ${koreanDateLabel(date)}</p>
-      <p><b style="color:var(--ink)">품목:</b> ${rec.items.map(x=>`${x.name} ${x.size} ×${x.qty}`).join(" / ")}</p>
+      <p><b style="color:var(--ink)">품목:</b> ${rec.items.map(formatItem).join(" / ")}</p>
       <div class="action-row"></div>`;
     const actions=card.querySelector(".action-row");
     const done=document.createElement("button");done.className="smallbtn done";
     done.textContent=rec.status==="완료"?"완료됨":isRental?"지급 완료":"전달 완료";
-    done.disabled=rec.status==="완료";
-    done.onclick=()=>completeApplication(type,rec.id);
+    done.disabled=rec.status==="완료";done.onclick=()=>completeApplication(type,rec.id);
     const del=document.createElement("button");del.className="smallbtn delete";del.textContent="삭제";
     del.onclick=()=>deleteApplication(type,rec.id);
-    actions.append(done,del);
-    box.appendChild(card);
+    actions.append(done,del);box.appendChild(card);
   });
 }
 function changeInventory(items,delta){
   items.forEach(req=>{
     let it=getItem(req.name);
-    if(!it&&delta>0){it={name:req.name,icon:"👕",sizes:[]};db.inventory.push(it);}
+    if(!it&&delta>0){
+      it={name:req.name,icon:"👕",photo:"",sizeMode:req.size?"skirt":"none",sizes:req.size?[]:[["",0]]};
+      db.inventory.push(it);
+    }
     if(!it)return;
-    let s=it.sizes.find(x=>String(x[0])===String(req.size));
-    if(!s&&delta>0){s=[req.size,0];it.sizes.push(s);}
+    let s=stockSlot(it,req.size);
+    if(!s&&delta>0&&itemUsesSize(it)){s=[String(req.size),0];it.sizes.push(s);sortSizes(it);}
+    if(!s&&it.sizeMode==="none"){it.sizes=[["",0]];s=it.sizes[0];}
     if(s)s[1]=Math.max(0,Number(s[1])+delta*req.qty);
   });
 }
 function completeApplication(type,id){
   const rec=db[type].find(x=>x.id===id);if(!rec||rec.status==="완료")return;
   if(type==="rentals"){
-    const err=rentalStockEnough(rec.items);
-    if(err){toast(err);return;}
+    const err=rentalStockEnough(rec.items);if(err){toast(err);return;}
     changeInventory(rec.items,-1);
-  }else{
-    changeInventory(rec.items,1);
-  }
+  }else changeInventory(rec.items,1);
   rec.status="완료";saveDB();renderAdmin();renderInventory();
   toast(type==="rentals"?"지급 완료 처리했습니다.":"전달 완료 및 재고 반영했습니다.");
 }
@@ -708,25 +820,19 @@ function deleteApplication(type,id){
   if(!confirm(`${rec.studentId} ${rec.name} 신청을 삭제할까요?`))return;
   db[type]=db[type].filter(x=>x.id!==id);saveDB();renderAdmin();toast("신청 내역을 삭제했습니다.");
 }
-function renderAdmin(){
-  renderStockAdmin();renderApplications("rentals");renderApplications("donations");
-}
-
+function renderAdmin(){renderStockAdmin();renderApplications("rentals");renderApplications("donations");}
 
 window.addEventListener("beforeinstallprompt",e=>{
-  e.preventDefault();
-  deferredInstallPrompt=e;
-  $("installAppBtn").style.display="block";
+  e.preventDefault();deferredInstallPrompt=e;$("installAppBtn").style.display="block";
 });
 $("installAppBtn").addEventListener("click",async()=>{
   if(deferredInstallPrompt){
     deferredInstallPrompt.prompt();
     try{await deferredInstallPrompt.userChoice;}catch(_){}
-    deferredInstallPrompt=null;
-    return;
+    deferredInstallPrompt=null;return;
   }
   const ua=navigator.userAgent;
-  if(/iPhone|iPad|iPod/i.test(ua)) alert("Safari 하단 공유 버튼 → ‘홈 화면에 추가’를 선택해 주세요.");
+  if(/iPhone|iPad|iPod/i.test(ua))alert("Safari 하단 공유 버튼 → ‘홈 화면에 추가’를 선택해 주세요.");
   else alert("브라우저 메뉴에서 ‘홈 화면에 추가’ 또는 ‘앱 설치’를 선택해 주세요.");
 });
 
